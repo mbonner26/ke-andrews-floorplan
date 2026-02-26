@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KE Andrews Floor Directory</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e1117;
+    --surface: #161c24;
+    --surface2: #1e2530;
+    --border: #2a333f;
+    --text: #e8edf2;
+    --text-muted: #6b7a8d;
+    --accent: #27564a;
+    --accent2: #6088c5;
+  }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+  }
+
+  header h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  header h1 span {
+    color: var(--text);
+  }
+
+  .upload-area {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn:hover {
+    border-color: var(--accent2);
+    color: var(--accent2);
+  }
+
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .btn.primary:hover {
+    background: #2e6657;
+    border-color: #2e6657;
+  }
+
+  #file-status {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  #file-status.loaded {
+    color: #4caf7d;
+  }
+
+  /* Floor tabs */
+  .floor-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    padding: 0 32px;
+  }
+
+  .floor-tab {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 14px 24px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+  }
+
+  .floor-tab:hover { color: var(--text); }
+
+  .floor-tab.active {
+    color: var(--text);
+    border-bottom-color: var(--accent2);
+  }
+
+  /* Main layout */
+  .main {
+    display: flex;
+    flex: 1;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  /* SVG panel */
+  .floorplan-panel {
+    flex: 1;
+    padding: 24px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .floor-panel { display: none; }
+  .floor-panel.active { display: flex; flex-direction: column; gap: 16px; }
+
+  .svg-upload-zone {
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface);
+  }
+
+  .svg-upload-zone:hover {
+    border-color: var(--accent2);
+    background: var(--surface2);
+  }
+
+  .svg-upload-zone p {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 8px;
+  }
+
+  .svg-upload-zone .zone-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .svg-container {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface);
+    position: relative;
+  }
+
+  .svg-container svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  /* Tooltip */
+  .tooltip {
+    position: fixed;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 1000;
+    display: none;
+    max-width: 220px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+
+  .tooltip .t-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .tooltip .t-dept {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .tooltip .t-office {
+    color: var(--text-muted);
+    font-size: 11px;
+    margin-top: 4px;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 340px;
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .sidebar-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .sidebar-header h2 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .employee-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--surface2);
+    padding: 3px 8px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+  }
+
+  /* Department legend */
+  .dept-legend {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .dept-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    padding: 3px 8px 3px 6px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .dept-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Directory table */
+  .directory-scroll {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .directory-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  .directory-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    padding: 10px 20px;
+    text-align: left;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+  }
+
+  .directory-table tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+    cursor: default;
+  }
+
+  .directory-table tbody tr:hover {
+    background: var(--surface2);
+  }
+
+  .directory-table td {
+    padding: 9px 20px;
+    vertical-align: middle;
+  }
+
+  .td-office {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .td-name {
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .td-dept {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .dept-color-bar {
+    width: 3px;
+    height: 14px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .empty-state {
+    padding: 48px 20px;
+    text-align: center;
+  }
+
+  .empty-state p {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* Print styles */
+  @media print {
+    body { background: white; color: #111; }
+    header, .floor-tabs, .floorplan-panel { display: none !important; }
+    .main { display: block; }
+    .sidebar {
+      width: 100%;
+      border: none;
+      background: white;
+    }
+    .sidebar-header h2, .employee-count { color: #333; }
+    .directory-table td, .directory-table th { color: #111 !important; border-color: #ddd !important; }
+    .dept-chip { color: #333 !important; border-color: #ccc !important; background: white !important; }
+    .tooltip { display: none !important; }
+  }
+
+  /* Search */
+  .search-bar {
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .search-bar input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 7px 12px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .search-bar input::placeholder { color: var(--text-muted); }
+  .search-bar input:focus { border-color: var(--accent2); }
+
+  .print-btn-wrap {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .print-btn-wrap .btn {
+    width: 100%;
+    justify-content: center;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>KE Andrews &nbsp;/&nbsp; <span>Office Directory</span></h1>
+  <div class="upload-area">
+    <span id="file-status">No roster loaded</span>
+    <label class="btn primary" style="cursor:pointer">
+      ↑ Upload Roster (Excel)
+      <input type="file" id="excel-upload" accept=".xlsx,.xls,.csv" style="display:none">
+    </label>
+  </div>
+</header>
+
+<div class="floor-tabs">
+  <button class="floor-tab active" data-floor="1">Floor 1</button>
+  <button class="floor-tab" data-floor="2">Floor 2</button>
+  <button class="floor-tab" data-floor="3">Floor 3</button>
+</div>
+
+<div class="main">
+  <div class="floorplan-panel">
+    <!-- Floor 1 -->
+    <div class="floor-panel active" id="floor-panel-1">
+      <div class="svg-upload-zone" id="svg-zone-1" onclick="document.getElementById('svg-upload-1').click()">
+        <div class="zone-label">Floor 1 — Upload SVG Floorplan</div>
+        <p>Click to upload your Floor 1 SVG exported from Illustrator</p>
+        <input type="file" id="svg-upload-1" accept=".svg" style="display:none">
+      </div>
+      <div class="svg-container" id="svg-container-1" style="display:none"></div>
+    </div>
+    <!-- Floor 2 -->
+    <div class="floor-panel" id="floor-panel-2">
+      <div class="svg-upload-zone" id="svg-zone-2" onclick="document.getElementById('svg-upload-2').click()">
+        <div class="zone-label">Floor 2 — Upload SVG Floorplan</div>
+        <p>Click to upload your Floor 2 SVG exported from Illustrator</p>
+        <input type="file" id="svg-upload-2" accept=".svg" style="display:none">
+      </div>
+      <div class="svg-container" id="svg-container-2" style="display:none"></div>
+    </div>
+    <!-- Floor 3 -->
+    <div class="floor-panel" id="floor-panel-3">
+      <div class="svg-upload-zone" id="svg-zone-3" onclick="document.getElementById('svg-upload-3').click()">
+        <div class="zone-label">Floor 3 — Upload SVG Floorplan</div>
+        <p>Click to upload your Floor 3 SVG exported from Illustrator</p>
+        <input type="file" id="svg-upload-3" accept=".svg" style="display:none">
+      </div>
+      <div class="svg-container" id="svg-container-3" style="display:none"></div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h2 id="sidebar-floor-label">Floor 1 Directory</h2>
+      <span class="employee-count" id="emp-count">0 employees</span>
+    </div>
+    <div class="dept-legend" id="dept-legend"></div>
+    <div class="search-bar">
+      <input type="text" id="search-input" placeholder="Search by name, office, or department…">
+    </div>
+    <div class="directory-scroll">
+      <table class="directory-table">
+        <thead>
+          <tr>
+            <th>Office</th>
+            <th>Name</th>
+            <th>Department</th>
+          </tr>
+        </thead>
+        <tbody id="directory-body">
+          <tr><td colspan="3"><div class="empty-state"><p>Upload an Excel roster to populate the directory.</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="print-btn-wrap">
+      <button class="btn" onclick="window.print()">⎙ Print This Floor Directory</button>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip">
+  <div class="t-name" id="tt-name"></div>
+  <div class="t-dept" id="tt-dept"></div>
+  <div class="t-office" id="tt-office"></div>
+</div>
+
+<script>
+// ─── Department Colors ───────────────────────────────────────────────────────
+const DEPT_COLORS = {
+  "Energy & Industrial Services": "#27564a",
+  "Oil & Gas": "#263d8b",
+  "IT": "#0a2228",
+  "Data": "#071116",
+  "Sales & Use": "#e38a48",
+  "Open": "#c9c9c9",
+  "Reception": "#8d9db1",
+  "Real Estate": "#e38a48",
+  "Personal Property": "#6c8ba5",
+  "Software": "#27564a",
+  "Credits & Incentives / Unifyi": "#6088c5",
+  "Business Development & Marketing": "#6088c5",
+  "HR": "#f8e483",
+  "Executive & Operations": "#6088c5",
+  "Operational Client Services": "#263d8b"
+};
+
+function getDeptColor(dept) {
+  if (!dept) return "#555";
+  const key = Object.keys(DEPT_COLORS).find(k => k.toLowerCase() === dept.toLowerCase().trim());
+  return key ? DEPT_COLORS[key] : "#6b7a8d";
+}
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let roster = []; // [{name, office, department, floor}]
+let activeFloor = 1;
+let searchQuery = "";
+
+// ─── Floor Tab Switching ─────────────────────────────────────────────────────
+document.querySelectorAll('.floor-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.floor-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.floor-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    activeFloor = parseInt(tab.dataset.floor);
+    document.getElementById(`floor-panel-${activeFloor}`).classList.add('active');
+    document.getElementById('sidebar-floor-label').textContent = `Floor ${activeFloor} Directory`;
+    document.getElementById('search-input').value = '';
+    searchQuery = '';
+    renderDirectory();
+  });
+});
+
+// ─── SVG Upload (per floor) ──────────────────────────────────────────────────
+[1,2,3].forEach(floor => {
+  document.getElementById(`svg-upload-${floor}`).addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const container = document.getElementById(`svg-container-${floor}`);
+      const zone = document.getElementById(`svg-zone-${floor}`);
+      container.innerHTML = ev.target.result;
+      container.style.display = 'block';
+      zone.style.display = 'none';
+      // After SVG is in DOM, apply roster colors
+      applyRosterToSVG(floor);
+      setupTooltips(floor);
+    };
+    reader.readAsText(file);
+  });
+});
+
+// ─── Excel Upload ────────────────────────────────────────────────────────────
+document.getElementById('excel-upload').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const wb = XLSX.read(ev.target.result, { type: 'binary' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+      roster = [];
+      // Find header row — look for Name, Office, Department columns
+      let headerRow = -1;
+      let nameCol = -1, officeCol = -1, deptCol = -1;
+
+      for (let i = 0; i < Math.min(5, rows.length); i++) {
+        const row = rows[i].map(c => String(c || '').toLowerCase().trim());
+        const ni = row.findIndex(c => c.includes('name'));
+        const oi = row.findIndex(c => c.includes('office') || c.includes('desk'));
+        const di = row.findIndex(c => c.includes('dept') || c.includes('department'));
+        if (ni !== -1 && oi !== -1 && di !== -1) {
+          headerRow = i; nameCol = ni; officeCol = oi; deptCol = di;
+          break;
+        }
+      }
+
+      // Fallback: assume columns 0=Name, 1=Office, 2=Department
+      if (headerRow === -1) {
+        headerRow = 0; nameCol = 0; officeCol = 1; deptCol = 2;
+      }
+
+      for (let i = headerRow + 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || !row[nameCol]) continue;
+        const name = String(row[nameCol] || '').trim();
+        const office = String(row[officeCol] || '').trim();
+        const dept = String(row[deptCol] || '').trim();
+        if (!name) continue;
+
+        // Determine floor from office ID prefix (Floor1-xxx or 1-xxx or F1-xxx)
+        let floor = 1;
+        const officeUpper = office.toUpperCase();
+        if (/^(FLOOR2|F2|2-)/.test(officeUpper) || officeUpper.startsWith('2')) {
+          // check digit prefix
+        }
+        // Try to extract floor from office number
+        const floorMatch = office.match(/^(?:floor\s*)?([123])[-_]?\d/i);
+        if (floorMatch) {
+          floor = parseInt(floorMatch[1]);
+        } else {
+          // Check for a "Floor" column or similar
+          const officeNum = parseInt(office);
+          if (officeNum >= 200 && officeNum < 300) floor = 2;
+          else if (officeNum >= 300 && officeNum < 400) floor = 3;
+          else floor = 1;
+        }
+
+        roster.push({ name, office, department: dept, floor });
+      }
+
+      const total = roster.length;
+      const statusEl = document.getElementById('file-status');
+      statusEl.textContent = `${total} employees loaded`;
+      statusEl.classList.add('loaded');
+
+      // Apply to all SVGs that are loaded
+      [1,2,3].forEach(f => {
+        const container = document.getElementById(`svg-container-${f}`);
+        if (container.style.display !== 'none') {
+          applyRosterToSVG(f);
+          setupTooltips(f);
+        }
+      });
+
+      renderDirectory();
+    } catch(err) {
+      alert('Error reading file. Please ensure it is a valid .xlsx or .csv file with columns: Name, Office/Desk Number, Department');
+      console.error(err);
+    }
+  };
+  reader.readAsBinaryString(file);
+});
+
+// ─── Apply roster colors to SVG shapes ───────────────────────────────────────
+function applyRosterToSVG(floor) {
+  const container = document.getElementById(`svg-container-${floor}`);
+  const svg = container.querySelector('svg');
+  if (!svg) return;
+
+  const floorRoster = roster.filter(r => r.floor === floor);
+
+  // For each element with an ID, check if it matches an office number
+  const allElements = svg.querySelectorAll('[id]');
+  allElements.forEach(el => {
+    const id = el.id;
+    // Try to match office ID to roster
+    const employee = floorRoster.find(r => {
+      const officeNorm = r.office.replace(/\s+/g, '').toLowerCase();
+      const idNorm = id.replace(/\s+/g, '').toLowerCase();
+      return idNorm === officeNorm || idNorm.endsWith(officeNorm) || officeNorm.endsWith(idNorm);
+    });
+
+    if (employee) {
+      const color = getDeptColor(employee.department);
+      // Apply to fill of path/rect/polygon elements, or to children
+      if (el.tagName.toLowerCase() === 'g') {
+        el.querySelectorAll('path, rect, polygon, circle, ellipse').forEach(shape => {
+          shape.style.fill = color;
+          shape.style.fillOpacity = '0.75';
+        });
+      } else {
+        el.style.fill = color;
+        el.style.fillOpacity = '0.75';
+      }
+      el.setAttribute('data-employee', JSON.stringify(employee));
+      el.style.cursor = 'pointer';
+    }
+  });
+}
+
+// ─── Tooltips ────────────────────────────────────────────────────────────────
+const tooltip = document.getElementById('tooltip');
+
+function setupTooltips(floor) {
+  const container = document.getElementById(`svg-container-${floor}`);
+  const svg = container.querySelector('svg');
+  if (!svg) return;
+
+  svg.querySelectorAll('[data-employee]').forEach(el => {
+    el.addEventListener('mousemove', (e) => {
+      if (activeFloor !== floor) return;
+      const emp = JSON.parse(el.getAttribute('data-employee'));
+      document.getElementById('tt-name').textContent = emp.name;
+      document.getElementById('tt-dept').textContent = emp.department;
+      document.getElementById('tt-office').textContent = `Office / Desk: ${emp.office}`;
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top = (e.clientY - 10) + 'px';
+    });
+    el.addEventListener('mouseleave', () => {
+      tooltip.style.display = 'none';
+    });
+  });
+
+  // Hide tooltip if mouse leaves SVG container
+  svg.addEventListener('mouseleave', () => {
+    tooltip.style.display = 'none';
+  });
+}
+
+// ─── Render Directory Sidebar ────────────────────────────────────────────────
+document.getElementById('search-input').addEventListener('input', function() {
+  searchQuery = this.value.toLowerCase().trim();
+  renderDirectory();
+});
+
+function renderDirectory() {
+  const tbody = document.getElementById('directory-body');
+  const legendEl = document.getElementById('dept-legend');
+  const countEl = document.getElementById('emp-count');
+
+  let floorData = roster
+    .filter(r => r.floor === activeFloor)
+    .sort((a, b) => {
+      // Sort by office number
+      const aNum = parseInt(a.office.replace(/\D/g, '')) || 0;
+      const bNum = parseInt(b.office.replace(/\D/g, '')) || 0;
+      return aNum - bNum;
+    });
+
+  // Dynamic department legend (only departments present on this floor)
+  const deptsOnFloor = [...new Set(floorData.map(r => r.department))].filter(Boolean);
+  legendEl.innerHTML = '';
+  deptsOnFloor.forEach(dept => {
+    const color = getDeptColor(dept);
+    const chip = document.createElement('div');
+    chip.className = 'dept-chip';
+    chip.innerHTML = `<span class="dept-dot" style="background:${color}"></span>${dept}`;
+    legendEl.appendChild(chip);
+  });
+
+  // Filter by search
+  if (searchQuery) {
+    floorData = floorData.filter(r =>
+      r.name.toLowerCase().includes(searchQuery) ||
+      r.office.toLowerCase().includes(searchQuery) ||
+      r.department.toLowerCase().includes(searchQuery)
+    );
+  }
+
+  countEl.textContent = `${floorData.length} employee${floorData.length !== 1 ? 's' : ''}`;
+
+  if (floorData.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3"><div class="empty-state"><p>${roster.length === 0 ? 'Upload an Excel roster to populate the directory.' : 'No employees found on this floor.'}</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = floorData.map(r => {
+    const color = getDeptColor(r.department);
+    return `<tr>
+      <td class="td-office">${r.office}</td>
+      <td class="td-name">${r.name}</td>
+      <td><div class="td-dept"><span class="dept-color-bar" style="background:${color}"></span>${r.department}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+// Initial render
+renderDirectory();
+</script>
+</body>
+</html>
