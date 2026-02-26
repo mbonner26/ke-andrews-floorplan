@@ -335,11 +335,7 @@
   <header>
     <h1>KE Andrews &nbsp;/&nbsp; <span>Office Directory</span></h1>
     <div class="upload-area">
-      <span id="file-status">No roster loaded</span>
-      <label class="btn primary" style="cursor:pointer">
-        ↑ Upload Roster (Excel)
-        <input type="file" id="excel-upload" accept=".xlsx,.xls,.csv" style="display:none">
-      </label>
+      <span id="file-status">Loading…</span>
     </div>
   </header>
 
@@ -352,27 +348,15 @@
   <div class="main">
     <div class="floorplan-panel">
       <div class="floor-panel active" id="floor-panel-1">
-        <label class="svg-upload-zone" id="svg-zone-1" for="svg-upload-1">
-          <div class="zone-label">Floor 1 — Upload SVG Floorplan</div>
-          <p>Click to upload your Floor 1 SVG exported from Illustrator</p>
-          <input type="file" id="svg-upload-1" accept=".svg" style="display:none">
-        </label>
+        <div class="svg-loading" id="svg-loading-1" style="padding:40px;text-align:center;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;font-size:11px;">Loading floorplan…</div>
         <div class="svg-container" id="svg-container-1" style="display:none"></div>
       </div>
       <div class="floor-panel" id="floor-panel-2">
-        <label class="svg-upload-zone" id="svg-zone-2" for="svg-upload-2">
-          <div class="zone-label">Floor 2 — Upload SVG Floorplan</div>
-          <p>Click to upload your Floor 2 SVG exported from Illustrator</p>
-          <input type="file" id="svg-upload-2" accept=".svg" style="display:none">
-        </label>
+        <div class="svg-loading" id="svg-loading-2" style="padding:40px;text-align:center;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;font-size:11px;">Loading floorplan…</div>
         <div class="svg-container" id="svg-container-2" style="display:none"></div>
       </div>
       <div class="floor-panel" id="floor-panel-3">
-        <label class="svg-upload-zone" id="svg-zone-3" for="svg-upload-3">
-          <div class="zone-label">Floor 3 — Upload SVG Floorplan</div>
-          <p>Click to upload your Floor 3 SVG exported from Illustrator</p>
-          <input type="file" id="svg-upload-3" accept=".svg" style="display:none">
-        </label>
+        <div class="svg-loading" id="svg-loading-3" style="padding:40px;text-align:center;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;font-size:11px;">Loading floorplan…</div>
         <div class="svg-container" id="svg-container-3" style="display:none"></div>
       </div>
     </div>
@@ -414,6 +398,92 @@
 </div>
 
 <script>
+const BASE_URL = 'https://mbonner26.github.io/ke-andrews-floorplan/';
+
+async function loadSVG(floor) {
+  try {
+    const res = await fetch(BASE_URL + 'floor' + floor + '.svg');
+    if (!res.ok) throw new Error('SVG not found');
+    const svgText = await res.text();
+    const container = document.getElementById('svg-container-' + floor);
+    const loading = document.getElementById('svg-loading-' + floor);
+    container.innerHTML = svgText;
+    container.style.display = 'block';
+    if (loading) loading.style.display = 'none';
+    applyRosterToSVG(floor);
+    setupTooltips(floor);
+  } catch(e) {
+    const loading = document.getElementById('svg-loading-' + floor);
+    if (loading) loading.textContent = 'Floor ' + floor + ' floorplan not found. Upload floor' + floor + '.svg to GitHub.';
+  }
+}
+
+async function loadRoster() {
+  try {
+    const res = await fetch(BASE_URL + 'roster.xlsx');
+    if (!res.ok) throw new Error('Roster not found');
+    const buffer = await res.arrayBuffer();
+    const wb = XLSX.read(buffer, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+    parseRoster(rows);
+  } catch(e) {
+    document.getElementById('file-status').textContent = 'roster.xlsx not found in repo';
+  }
+}
+
+function parseRoster(rows) {
+  roster = [];
+  let headerRow = -1, nameCol = -1, officeCol = -1, deptCol = -1;
+  for (let i = 0; i < Math.min(5, rows.length); i++) {
+    const row = rows[i].map(c => String(c || '').toLowerCase().trim());
+    const ni = row.findIndex(c => c.includes('name'));
+    const oi = row.findIndex(c => c.includes('office') || c.includes('desk'));
+    const di = row.findIndex(c => c.includes('dept') || c.includes('department'));
+    if (ni !== -1 && oi !== -1 && di !== -1) {
+      headerRow = i; nameCol = ni; officeCol = oi; deptCol = di;
+      break;
+    }
+  }
+  if (headerRow === -1) { headerRow = 0; nameCol = 0; officeCol = 1; deptCol = 2; }
+  for (let i = headerRow + 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || !row[nameCol]) continue;
+    const name = String(row[nameCol] || '').trim();
+    const office = String(row[officeCol] || '').trim();
+    const dept = String(row[deptCol] || '').trim();
+    if (!name) continue;
+    let floor = 1;
+    const floorMatch = office.match(/^(?:floor\s*)?([123])[-_]?\d/i);
+    if (floorMatch) {
+      floor = parseInt(floorMatch[1]);
+    } else {
+      const officeNum = parseInt(office);
+      if (officeNum >= 200 && officeNum < 300) floor = 2;
+      else if (officeNum >= 300 && officeNum < 400) floor = 3;
+      else floor = 1;
+    }
+    roster.push({ name, office, department: dept, floor });
+  }
+  const statusEl = document.getElementById('file-status');
+  statusEl.textContent = roster.length + ' employees';
+  statusEl.classList.add('loaded');
+  [1,2,3].forEach(f => {
+    const container = document.getElementById('svg-container-' + f);
+    if (container.style.display !== 'none') {
+      applyRosterToSVG(f);
+      setupTooltips(f);
+    }
+  });
+  renderDirectory();
+}
+
+// Boot: load everything on page open
+window.addEventListener('DOMContentLoaded', async () => {
+  await loadRoster();
+  await Promise.all([loadSVG(1), loadSVG(2), loadSVG(3)]);
+});
+
 const DEPT_COLORS = {
   "Energy & Industrial Services": "#27564a",
   "Oil & Gas": "#263d8b",
@@ -458,86 +528,7 @@ document.querySelectorAll('.floor-tab').forEach(tab => {
   });
 });
 
-[1,2,3].forEach(floor => {
-  document.getElementById(`svg-upload-${floor}`).addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(ev) {
-      const container = document.getElementById(`svg-container-${floor}`);
-      const zone = document.getElementById(`svg-zone-${floor}`);
-      container.innerHTML = ev.target.result;
-      container.style.display = 'block';
-      zone.style.display = 'none';
-      applyRosterToSVG(floor);
-      setupTooltips(floor);
-    };
-    reader.readAsText(file);
-  });
-});
-
-document.getElementById('excel-upload').addEventListener('change', function(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(ev) {
-    try {
-      const wb = XLSX.read(ev.target.result, { type: 'binary' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
-      roster = [];
-      let headerRow = -1, nameCol = -1, officeCol = -1, deptCol = -1;
-      for (let i = 0; i < Math.min(5, rows.length); i++) {
-        const row = rows[i].map(c => String(c || '').toLowerCase().trim());
-        const ni = row.findIndex(c => c.includes('name'));
-        const oi = row.findIndex(c => c.includes('office') || c.includes('desk'));
-        const di = row.findIndex(c => c.includes('dept') || c.includes('department'));
-        if (ni !== -1 && oi !== -1 && di !== -1) {
-          headerRow = i; nameCol = ni; officeCol = oi; deptCol = di;
-          break;
-        }
-      }
-      if (headerRow === -1) { headerRow = 0; nameCol = 0; officeCol = 1; deptCol = 2; }
-
-      for (let i = headerRow + 1; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row || !row[nameCol]) continue;
-        const name = String(row[nameCol] || '').trim();
-        const office = String(row[officeCol] || '').trim();
-        const dept = String(row[deptCol] || '').trim();
-        if (!name) continue;
-        let floor = 1;
-        const floorMatch = office.match(/^(?:floor\s*)?([123])[-_]?\d/i);
-        if (floorMatch) {
-          floor = parseInt(floorMatch[1]);
-        } else {
-          const officeNum = parseInt(office);
-          if (officeNum >= 200 && officeNum < 300) floor = 2;
-          else if (officeNum >= 300 && officeNum < 400) floor = 3;
-          else floor = 1;
-        }
-        roster.push({ name, office, department: dept, floor });
-      }
-
-      const statusEl = document.getElementById('file-status');
-      statusEl.textContent = `${roster.length} employees loaded`;
-      statusEl.classList.add('loaded');
-
-      [1,2,3].forEach(f => {
-        const container = document.getElementById(`svg-container-${f}`);
-        if (container.style.display !== 'none') {
-          applyRosterToSVG(f);
-          setupTooltips(f);
-        }
-      });
-      renderDirectory();
-    } catch(err) {
-      alert('Error reading file. Ensure it has columns: Name, Office/Desk, Department');
-      console.error(err);
-    }
-  };
-  reader.readAsBinaryString(file);
-});
+// Files loaded automatically from GitHub on page load
 
 function applyRosterToSVG(floor) {
   const container = document.getElementById(`svg-container-${floor}`);
