@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KE Andrews Floor Directory</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e1117;
+    --surface: #161c24;
+    --surface2: #1e2530;
+    --border: #2a333f;
+    --text: #e8edf2;
+    --text-muted: #6b7a8d;
+    --accent: #27564a;
+    --accent2: #6088c5;
+  }
+
+  html, body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  header h1 span { color: var(--text); }
+
+  .upload-area { display: flex; align-items: center; gap: 10px; }
+
+  .btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .btn.primary:hover { background: #2e6657; border-color: #2e6657; }
+
+  #file-status {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  #file-status.loaded { color: #4caf7d; }
+
+  .floor-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    padding: 0 20px;
+    flex-shrink: 0;
+  }
+
+  .floor-tab {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+  }
+
+  .floor-tab:hover { color: var(--text); }
+  .floor-tab.active { color: var(--text); border-bottom-color: var(--accent2); }
+
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .floorplan-panel {
+    flex: 1;
+    padding: 16px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .floor-panel { display: none; }
+  .floor-panel.active { display: flex; flex-direction: column; gap: 12px; }
+
+  .svg-upload-zone {
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface);
+  }
+
+  .svg-upload-zone:hover { border-color: var(--accent2); background: var(--surface2); }
+
+  .svg-upload-zone p { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+  .svg-upload-zone .zone-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .svg-container {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: auto;
+    background: var(--surface);
+    max-height: calc(100vh - 160px);
+  }
+
+  .svg-container svg { width: 100%; height: auto; display: block; }
+
+  .tooltip {
+    position: fixed;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 11px;
+    pointer-events: none;
+    z-index: 9999;
+    display: none;
+    max-width: 200px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+
+  .tooltip .t-name { font-weight: 600; font-size: 12px; color: var(--text); margin-bottom: 2px; }
+  .tooltip .t-dept { color: var(--text-muted); font-size: 10px; font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; }
+  .tooltip .t-office { color: var(--text-muted); font-size: 10px; margin-top: 3px; }
+
+  .sidebar {
+    width: 300px;
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .sidebar-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .sidebar-header h2 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .employee-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--surface2);
+    padding: 2px 7px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+  }
+
+  .dept-legend {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex-shrink: 0;
+    max-height: 100px;
+    overflow-y: auto;
+  }
+
+  .dept-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 9px;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    padding: 2px 7px 2px 5px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    white-space: nowrap;
+  }
+
+  .dept-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  .directory-scroll { flex: 1; overflow-y: auto; min-height: 0; }
+
+  .directory-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+
+  .directory-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    padding: 8px 16px;
+    text-align: left;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+    z-index: 1;
+  }
+
+  .directory-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  .directory-table tbody tr:hover { background: var(--surface2); }
+  .directory-table td { padding: 7px 16px; vertical-align: middle; }
+
+  .td-office { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-muted); white-space: nowrap; }
+  .td-name { font-weight: 500; color: var(--text); font-size: 11px; }
+  .td-dept { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text-muted); }
+  .dept-color-bar { width: 3px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+
+  .empty-state { padding: 40px 16px; text-align: center; }
+  .empty-state p { font-size: 11px; color: var(--text-muted); line-height: 1.6; font-family: 'IBM Plex Mono', monospace; }
+
+  .search-bar { padding: 8px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+
+  .search-bar input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 11px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .search-bar input::placeholder { color: var(--text-muted); }
+  .search-bar input:focus { border-color: var(--accent2); }
+
+  .print-btn-wrap { padding: 10px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+  .print-btn-wrap .btn { width: 100%; justify-content: center; }
+
+  @keyframes pulse-highlight {
+    0%   { filter: brightness(1.8) drop-shadow(0 0 6px #fff); }
+    50%  { filter: brightness(2.4) drop-shadow(0 0 14px #fff); }
+    100% { filter: brightness(1.8) drop-shadow(0 0 6px #fff); }
+  }
+
+  .svg-highlight { animation: pulse-highlight 0.9s ease-in-out infinite; }
+  .directory-table tbody tr.row-highlight { background: var(--surface2); outline: 1px solid var(--accent2); }
+
+  @media print {
+    body { background: white; color: #111; }
+    header, .floor-tabs, .floorplan-panel { display: none !important; }
+    .main { display: block; }
+    .sidebar { width: 100%; border: none; background: white; height: auto; overflow: visible; }
+    .directory-scroll { overflow: visible; }
+    .sidebar-header h2, .employee-count { color: #333; }
+    .directory-table td, .directory-table th { color: #111 !important; border-color: #ddd !important; }
+    .dept-chip { color: #333 !important; border-color: #ccc !important; background: white !important; }
+    .tooltip { display: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>KE Andrews &nbsp;/&nbsp; <span>Office Directory</span></h1>
+    <div class="upload-area">
+      <span id="file-status">No roster loaded</span>
+      <label class="btn primary" style="cursor:pointer">
+        ↑ Upload Roster (Excel)
+        <input type="file" id="excel-upload" accept=".xlsx,.xls,.csv" style="display:none">
+      </label>
+    </div>
+  </header>
+
+  <div class="floor-tabs">
+    <button class="floor-tab active" data-floor="1">Floor 1</button>
+    <button class="floor-tab" data-floor="2">Floor 2</button>
+    <button class="floor-tab" data-floor="3">Floor 3</button>
+  </div>
+
+  <div class="main">
+    <div class="floorplan-panel">
+      <div class="floor-panel active" id="floor-panel-1">
+        <label class="svg-upload-zone" id="svg-zone-1" for="svg-upload-1">
+          <div class="zone-label">Floor 1 — Upload SVG Floorplan</div>
+          <p>Click to upload your Floor 1 SVG exported from Illustrator</p>
+          <input type="file" id="svg-upload-1" accept=".svg" style="display:none">
+        </label>
+        <div class="svg-container" id="svg-container-1" style="display:none"></div>
+      </div>
+      <div class="floor-panel" id="floor-panel-2">
+        <label class="svg-upload-zone" id="svg-zone-2" for="svg-upload-2">
+          <div class="zone-label">Floor 2 — Upload SVG Floorplan</div>
+          <p>Click to upload your Floor 2 SVG exported from Illustrator</p>
+          <input type="file" id="svg-upload-2" accept=".svg" style="display:none">
+        </label>
+        <div class="svg-container" id="svg-container-2" style="display:none"></div>
+      </div>
+      <div class="floor-panel" id="floor-panel-3">
+        <label class="svg-upload-zone" id="svg-zone-3" for="svg-upload-3">
+          <div class="zone-label">Floor 3 — Upload SVG Floorplan</div>
+          <p>Click to upload your Floor 3 SVG exported from Illustrator</p>
+          <input type="file" id="svg-upload-3" accept=".svg" style="display:none">
+        </label>
+        <div class="svg-container" id="svg-container-3" style="display:none"></div>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h2 id="sidebar-floor-label">Floor 1 Directory</h2>
+        <span class="employee-count" id="emp-count">0 employees</span>
+      </div>
+      <div class="dept-legend" id="dept-legend"></div>
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="Search name, office, or dept…">
+      </div>
+      <div class="directory-scroll">
+        <table class="directory-table">
+          <thead>
+            <tr>
+              <th>Office</th>
+              <th>Name</th>
+              <th>Dept</th>
+            </tr>
+          </thead>
+          <tbody id="directory-body">
+            <tr><td colspan="3"><div class="empty-state"><p>Upload an Excel roster to populate the directory.</p></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="print-btn-wrap">
+        <button class="btn" onclick="window.print()">⎙ Print Directory</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip">
+  <div class="t-name" id="tt-name"></div>
+  <div class="t-dept" id="tt-dept"></div>
+  <div class="t-office" id="tt-office"></div>
+</div>
+
+<script>
+const DEPT_COLORS = {
+  "Energy & Industrial Services": "#27564a",
+  "Oil & Gas": "#263d8b",
+  "IT": "#0a2228",
+  "Data": "#071116",
+  "Sales & Use": "#e38a48",
+  "Open": "#c9c9c9",
+  "Reception": "#8d9db1",
+  "Real Estate": "#e38a48",
+  "Personal Property": "#6c8ba5",
+  "Software": "#27564a",
+  "Credits & Incentives / Unifyi": "#6088c5",
+  "Business Development & Marketing": "#6088c5",
+  "HR": "#f8e483",
+  "Executive & Operations": "#6088c5",
+  "Operational Client Services": "#263d8b"
+};
+
+function getDeptColor(dept) {
+  if (!dept) return "#555";
+  const key = Object.keys(DEPT_COLORS).find(k => k.toLowerCase() === dept.toLowerCase().trim());
+  return key ? DEPT_COLORS[key] : "#6b7a8d";
+}
+
+let roster = [];
+let activeFloor = 1;
+let searchQuery = "";
+
+document.querySelectorAll('.floor-tab').forEach(tab => {
+  tab.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    document.querySelectorAll('.floor-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.floor-panel').forEach(p => p.classList.remove('active'));
+    this.classList.add('active');
+    activeFloor = parseInt(this.dataset.floor);
+    document.getElementById('floor-panel-' + activeFloor).classList.add('active');
+    document.getElementById('sidebar-floor-label').textContent = 'Floor ' + activeFloor + ' Directory';
+    document.getElementById('search-input').value = '';
+    searchQuery = '';
+    renderDirectory();
+  });
+});
+
+[1,2,3].forEach(floor => {
+  document.getElementById(`svg-upload-${floor}`).addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const container = document.getElementById(`svg-container-${floor}`);
+      const zone = document.getElementById(`svg-zone-${floor}`);
+      container.innerHTML = ev.target.result;
+      container.style.display = 'block';
+      zone.style.display = 'none';
+      applyRosterToSVG(floor);
+      setupTooltips(floor);
+    };
+    reader.readAsText(file);
+  });
+});
+
+document.getElementById('excel-upload').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const wb = XLSX.read(ev.target.result, { type: 'binary' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      roster = [];
+      let headerRow = -1, nameCol = -1, officeCol = -1, deptCol = -1;
+      for (let i = 0; i < Math.min(5, rows.length); i++) {
+        const row = rows[i].map(c => String(c || '').toLowerCase().trim());
+        const ni = row.findIndex(c => c.includes('name'));
+        const oi = row.findIndex(c => c.includes('office') || c.includes('desk'));
+        const di = row.findIndex(c => c.includes('dept') || c.includes('department'));
+        if (ni !== -1 && oi !== -1 && di !== -1) {
+          headerRow = i; nameCol = ni; officeCol = oi; deptCol = di;
+          break;
+        }
+      }
+      if (headerRow === -1) { headerRow = 0; nameCol = 0; officeCol = 1; deptCol = 2; }
+
+      for (let i = headerRow + 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || !row[nameCol]) continue;
+        const name = String(row[nameCol] || '').trim();
+        const office = String(row[officeCol] || '').trim();
+        const dept = String(row[deptCol] || '').trim();
+        if (!name) continue;
+        let floor = 1;
+        const floorMatch = office.match(/^(?:floor\s*)?([123])[-_]?\d/i);
+        if (floorMatch) {
+          floor = parseInt(floorMatch[1]);
+        } else {
+          const officeNum = parseInt(office);
+          if (officeNum >= 200 && officeNum < 300) floor = 2;
+          else if (officeNum >= 300 && officeNum < 400) floor = 3;
+          else floor = 1;
+        }
+        roster.push({ name, office, department: dept, floor });
+      }
+
+      const statusEl = document.getElementById('file-status');
+      statusEl.textContent = `${roster.length} employees loaded`;
+      statusEl.classList.add('loaded');
+
+      [1,2,3].forEach(f => {
+        const container = document.getElementById(`svg-container-${f}`);
+        if (container.style.display !== 'none') {
+          applyRosterToSVG(f);
+          setupTooltips(f);
+        }
+      });
+      renderDirectory();
+    } catch(err) {
+      alert('Error reading file. Ensure it has columns: Name, Office/Desk, Department');
+      console.error(err);
+    }
+  };
+  reader.readAsBinaryString(file);
+});
+
+function applyRosterToSVG(floor) {
+  const container = document.getElementById(`svg-container-${floor}`);
+  const svg = container.querySelector('svg');
+  if (!svg) return;
+  const floorRoster = roster.filter(r => r.floor === floor);
+  svg.querySelectorAll('[id]').forEach(el => {
+    const id = el.id;
+    const employee = floorRoster.find(r => {
+      const officeNorm = r.office.replace(/\s+/g, '').toLowerCase();
+      const idNorm = id.replace(/\s+/g, '').toLowerCase();
+      return idNorm === officeNorm || idNorm.endsWith(officeNorm) || officeNorm.endsWith(idNorm);
+    });
+    if (employee) {
+      const color = getDeptColor(employee.department);
+      if (el.tagName.toLowerCase() === 'g') {
+        el.querySelectorAll('path, rect, polygon, circle, ellipse').forEach(s => {
+          s.style.fill = color;
+          s.style.fillOpacity = '0.75';
+        });
+      } else {
+        el.style.fill = color;
+        el.style.fillOpacity = '0.75';
+      }
+      el.setAttribute('data-employee', JSON.stringify(employee));
+      el.style.cursor = 'pointer';
+    }
+  });
+}
+
+const tooltip = document.getElementById('tooltip');
+
+function setupTooltips(floor) {
+  const container = document.getElementById(`svg-container-${floor}`);
+  const svg = container.querySelector('svg');
+  if (!svg) return;
+  svg.querySelectorAll('[data-employee]').forEach(el => {
+    el.addEventListener('mousemove', (e) => {
+      if (activeFloor !== floor) return;
+      const emp = JSON.parse(el.getAttribute('data-employee'));
+      document.getElementById('tt-name').textContent = emp.name;
+      document.getElementById('tt-dept').textContent = emp.department;
+      document.getElementById('tt-office').textContent = `Office / Desk: ${emp.office}`;
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top = (e.clientY - 10) + 'px';
+    });
+    el.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+  });
+  svg.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+}
+
+document.getElementById('search-input').addEventListener('input', function() {
+  searchQuery = this.value.toLowerCase().trim();
+  renderDirectory();
+});
+
+function renderDirectory() {
+  const tbody = document.getElementById('directory-body');
+  const legendEl = document.getElementById('dept-legend');
+  const countEl = document.getElementById('emp-count');
+
+  let floorData = roster
+    .filter(r => r.floor === activeFloor)
+    .sort((a, b) => {
+      const aNum = parseInt(a.office.replace(/\D/g, '')) || 0;
+      const bNum = parseInt(b.office.replace(/\D/g, '')) || 0;
+      return aNum - bNum;
+    });
+
+  const deptsOnFloor = [...new Set(floorData.map(r => r.department))].filter(Boolean);
+  legendEl.innerHTML = '';
+  deptsOnFloor.forEach(dept => {
+    const color = getDeptColor(dept);
+    const chip = document.createElement('div');
+    chip.className = 'dept-chip';
+    chip.innerHTML = `<span class="dept-dot" style="background:${color}"></span>${dept}`;
+    legendEl.appendChild(chip);
+  });
+
+  if (searchQuery) {
+    floorData = floorData.filter(r =>
+      r.name.toLowerCase().includes(searchQuery) ||
+      r.office.toLowerCase().includes(searchQuery) ||
+      r.department.toLowerCase().includes(searchQuery)
+    );
+  }
+
+  countEl.textContent = `${floorData.length} employee${floorData.length !== 1 ? 's' : ''}`;
+
+  if (floorData.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3"><div class="empty-state"><p>${roster.length === 0 ? 'Upload an Excel roster to populate the directory.' : 'No employees found on this floor.'}</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = floorData.map(r => {
+    const color = getDeptColor(r.department);
+    return `<tr data-office="${r.office}" data-floor="${r.floor}">
+      <td class="td-office">${r.office}</td>
+      <td class="td-name">${r.name}</td>
+      <td><div class="td-dept"><span class="dept-color-bar" style="background:${color}"></span>${r.department}</div></td>
+    </tr>`;
+  }).join('');
+
+  // Attach hover highlight to each row
+  tbody.querySelectorAll('tr[data-office]').forEach(row => {
+    row.addEventListener('mouseenter', () => {
+      const office = row.dataset.office;
+      const floor = parseInt(row.dataset.floor);
+      highlightShape(office, floor);
+    });
+    row.addEventListener('mouseleave', () => {
+      clearHighlights();
+    });
+  });
+}
+
+function highlightShape(office, floor) {
+  clearHighlights();
+  const container = document.getElementById('svg-container-' + floor);
+  const svg = container ? container.querySelector('svg') : null;
+  if (!svg) return;
+  svg.querySelectorAll('[data-employee]').forEach(el => {
+    try {
+      const emp = JSON.parse(el.getAttribute('data-employee'));
+      if (emp.office === office) {
+        el.classList.add('svg-highlight');
+        // Also scroll the SVG container to show the element if possible
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    } catch(e) {}
+  });
+}
+
+function clearHighlights() {
+  document.querySelectorAll('.svg-highlight').forEach(el => el.classList.remove('svg-highlight'));
+}
+
+renderDirectory();
+</script>
+</body>
+</html>
