@@ -578,6 +578,32 @@ function setupTooltips(floor) {
 
 document.getElementById('search-input').addEventListener('input', function() {
   searchQuery = this.value.toLowerCase().trim();
+
+  if (searchQuery) {
+    const floorCounts = [1, 2, 3].map(f => ({
+      floor: f,
+      count: roster.filter(r => r.floor === f && (
+        r.name.toLowerCase().includes(searchQuery) ||
+        r.office.toLowerCase().includes(searchQuery) ||
+        r.department.toLowerCase().includes(searchQuery)
+      )).length
+    }));
+
+    const currentCount = floorCounts.find(f => f.floor === activeFloor).count;
+
+    if (currentCount === 0) {
+      const best = floorCounts.reduce((a, b) => b.count > a.count ? b : a);
+      if (best.count > 0) {
+        document.querySelectorAll('.floor-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.floor-panel').forEach(p => p.classList.remove('active'));
+        document.querySelector(`.floor-tab[data-floor="${best.floor}"]`).classList.add('active');
+        document.getElementById('floor-panel-' + best.floor).classList.add('active');
+        activeFloor = best.floor;
+        document.getElementById('sidebar-floor-label').textContent = 'Floor ' + activeFloor + ' Directory';
+      }
+    }
+  }
+
   renderDirectory();
 });
 
