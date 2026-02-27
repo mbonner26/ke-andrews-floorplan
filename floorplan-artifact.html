@@ -6,7 +6,7 @@
 <title>KE Andrews Floor Directory</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+  @import url('href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Lora:ital,wght@0,400..700;1,400..700&display=swap');
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -22,7 +22,7 @@
   }
 
   html, body {
-    font-family: 'IBM Plex Sans', sans-serif;
+    font-family: 'Lora', serif;
     background: var(--bg);
     color: var(--text);
     height: 100%;
@@ -46,7 +46,7 @@
   }
 
   header h1 {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Lora', serif;
     font-size: 12px;
     font-weight: 500;
     letter-spacing: 0.1em;
@@ -59,7 +59,7 @@
   .upload-area { display: flex; align-items: center; gap: 10px; }
 
   .btn {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Lora', serif;
     font-size: 10px;
     font-weight: 500;
     letter-spacing: 0.08em;
@@ -87,7 +87,7 @@
   .btn.primary:hover { background: #2e6657; border-color: #2e6657; }
 
   #file-status {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Lora', serif;
     font-size: 10px;
     color: var(--text-muted);
   }
@@ -103,7 +103,7 @@
   }
 
   .floor-tab {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Lora', serif;
     font-size: 11px;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -156,7 +156,7 @@
   .svg-upload-zone p { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
 
   .svg-upload-zone .zone-label {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Lora', serif;
     font-size: 11px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -188,7 +188,7 @@
   }
 
   .tooltip .t-name { font-weight: 600; font-size: 12px; color: var(--text); margin-bottom: 2px; }
-  .tooltip .t-dept { color: var(--text-muted); font-size: 10px; font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; }
+  .tooltip .t-dept { color: var(--text-muted); font-size: 10px; font-family: 'Lora', serif; text-transform: uppercase; letter-spacing: 0.05em; }
   .tooltip .t-office { color: var(--text-muted); font-size: 10px; margin-top: 3px; }
 
   .sidebar {
@@ -211,7 +211,7 @@
   }
 
   .sidebar-header h2 {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Lora', serif;
     font-size: 10px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -219,7 +219,7 @@
   }
 
   .employee-count {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Lora', serif;
     font-size: 10px;
     color: var(--text-muted);
     background: var(--surface2);
@@ -244,7 +244,7 @@
     align-items: center;
     gap: 5px;
     font-size: 9px;
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Lora', serif;
     letter-spacing: 0.04em;
     color: var(--text-muted);
     padding: 2px 7px 2px 5px;
@@ -266,7 +266,7 @@
     background: var(--surface);
     padding: 8px 16px;
     text-align: left;
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Lora', serif;
     font-size: 9px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -280,13 +280,13 @@
   .directory-table tbody tr:hover { background: var(--surface2); }
   .directory-table td { padding: 7px 16px; vertical-align: middle; }
 
-  .td-office { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-muted); white-space: nowrap; }
+  .td-office { font-family: 'Lora', serif; font-size: 10px; color: var(--text-muted); white-space: nowrap; }
   .td-name { font-weight: 500; color: var(--text); font-size: 11px; }
   .td-dept { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text-muted); }
   .dept-color-bar { width: 3px; height: 12px; border-radius: 2px; flex-shrink: 0; }
 
   .empty-state { padding: 40px 16px; text-align: center; }
-  .empty-state p { font-size: 11px; color: var(--text-muted); line-height: 1.6; font-family: 'IBM Plex Mono', monospace; }
+  .empty-state p { font-size: 11px; color: var(--text-muted); line-height: 1.6; font-family: 'Lora', serif; }
 
   .search-bar { padding: 8px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 
@@ -348,15 +348,15 @@
   <div class="main">
     <div class="floorplan-panel">
       <div class="floor-panel active" id="floor-panel-1">
-        <div class="svg-loading" id="svg-loading-1" style="padding:40px;text-align:center;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;font-size:11px;">Loading floorplan…</div>
+        <div class="svg-loading" id="svg-loading-1" style="padding:40px;text-align:center;color:var(--text-muted);font-family:'Lora',serif;font-size:11px;">Loading floorplan…</div>
         <div class="svg-container" id="svg-container-1" style="display:none"></div>
       </div>
       <div class="floor-panel" id="floor-panel-2">
-        <div class="svg-loading" id="svg-loading-2" style="padding:40px;text-align:center;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;font-size:11px;">Loading floorplan…</div>
+        <div class="svg-loading" id="svg-loading-2" style="padding:40px;text-align:center;color:var(--text-muted);font-family:'Lora',serif;font-size:11px;">Loading floorplan…</div>
         <div class="svg-container" id="svg-container-2" style="display:none"></div>
       </div>
       <div class="floor-panel" id="floor-panel-3">
-        <div class="svg-loading" id="svg-loading-3" style="padding:40px;text-align:center;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;font-size:11px;">Loading floorplan…</div>
+        <div class="svg-loading" id="svg-loading-3" style="padding:40px;text-align:center;color:var(--text-muted);font-family:'Lora',serif;font-size:11px;">Loading floorplan…</div>
         <div class="svg-container" id="svg-container-3" style="display:none"></div>
       </div>
     </div>
