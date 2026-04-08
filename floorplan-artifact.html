@@ -542,8 +542,9 @@ function parseRoster(rows) {
     roster.push({ name, office, department: dept, division, floor });
   }
   const statusEl = document.getElementById('file-status');
-  statusEl.textContent = roster.length + ' employees';
+  statusEl.textContent = roster.filter(r => r.department !== 'Conference Room').length + ' employees';
   statusEl.classList.add('loaded');
+  roster = roster.filter(r => r.department !== 'Conference Room').concat(CONFERENCE_ROOMS);
   [1,2,3].forEach(f => {
     const container = document.getElementById('svg-container-' + f);
     if (container.style.display !== 'none') {
@@ -554,8 +555,25 @@ function parseRoster(rows) {
   renderDirectory();
 }
 
+// Hard-coded conference rooms — never part of the roster
+const CONFERENCE_ROOMS = [
+  { name: "Rains",    office: "159", floor: 1 },
+  { name: "Rockwall", office: "156", floor: 1 },
+  { name: "Huddle",   office: "128", floor: 1 },
+  { name: "Maverick", office: "141", floor: 1 },
+  { name: "Dallas",   office: "277", floor: 2 },
+  { name: "Midland",  office: "208", floor: 2 },
+  { name: "Starr",    office: "227", floor: 2 },
+  { name: "Uvalde",   office: "344", floor: 3 },
+  { name: "Fannin",   office: "345", floor: 3 },
+  { name: "Colorado", office: "342", floor: 3 },
+  { name: "Medina",   office: "322", floor: 3 },
+  { name: "Huddle",   office: "312", floor: 3 },
+].map(r => ({ ...r, department: "Conference Room", division: "" }));
+
 // Boot: load everything on page open
 window.addEventListener('DOMContentLoaded', async () => {
+  roster = [...CONFERENCE_ROOMS];
   await loadRoster();
   await Promise.all([loadSVG(1), loadSVG(2), loadSVG(3)]);
 });
@@ -575,7 +593,8 @@ const DEPT_COLORS = {
   "Business Development & Marketing": "#6088c5",
   "HR": "#f8e483",
   "Executive & Operations": "#6088c5",
-  "Operational Client Services": "#263d8b"
+  "Operational Client Services": "#263d8b",
+  "Conference Room": "#7a4f8a"
 };
 
 function getDeptColor(dept) {
